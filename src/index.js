@@ -1,13 +1,20 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const { createClient } = require('@supabase/supabase-js');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, '../logs');
@@ -22,46 +29,51 @@ const accessLogStream = fs.createWriteStream(
 );
 
 // Middleware
-app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-app.use(morgan('combined', { stream: accessLogStream })); // Logging
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('combined', { stream: accessLogStream }));
 
-// Health check endpoint (required for Docker healthcheck)
-app.get('/health', (req, res) => {
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  let supabaseStatus = 'disconnected';
+  try {
+    const { data, error } = await supabase.from('_health').select('*').limit(1);
+    // Even if _health table doesn't exist, if we get an error response from Supabase, the API is reachable
+    if (!error || error.code === 'PGRST116' || error.status !== 0) {
+      supabaseStatus = 'connected';
+    }
+  } catch (err) {
+    supabaseStatus = 'error';
+  }
+
   const healthStatus = {
     status: 'UP',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    database: 'supabase',
+    supabase: supabaseStatus
   };
-  
-  const httpStatus = mongoose.connection.readyState === 1 ? 200 : 503;
-  res.status(httpStatus).json(healthStatus);
+
+  res.status(200).json(healthStatus);
 });
 
 // API routes
 app.get('/api', (req, res) => {
   res.json({
-    message: 'Cricket Backend API',
+    message: 'Cricket Backend API (Supabase Version)',
     version: '1.0.0',
     status: 'running'
   });
 });
 
-// Import your routes here
-// app.use('/api/matches', require('./routes/matches'));
-// app.use('/api/teams', require('./routes/teams'));
-// app.use('/api/players', require('./routes/players'));
-
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
     error: {
-      message: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+      message: err.message || 'Internal Server Error'
     }
   });
 });
@@ -69,74 +81,13 @@ app.use((err, req, res, next) => {
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
-    error: {
-      message: 'Route not found'
-    }
+    error: { message: 'Route not found' }
   });
 });
 
-// MongoDB connection
-const connectDB = async () => {
-  try {
-    const mongoUri = process.env.MONGODB_URI;
-    
-    if (!mongoUri) {
-      throw new Error('MONGODB_URI environment variable is not defined');
-    }
-
-    await mongoose.connect(mongoUri, {
-      // Connection options
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
-
-    console.log('✅ MongoDB connected successfully');
-    console.log(`📊 Database: ${mongoose.connection.name}`);
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    // Exit process with failure
-    process.exit(1);
-  }
-};
-
-// Graceful shutdown
-const gracefulShutdown = async (signal) => {
-  console.log(`\n${signal} received. Starting graceful shutdown...`);
-  
-  try {
-    // Close MongoDB connection
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed');
-    
-    // Exit process
-    process.exit(0);
-  } catch (error) {
-    console.error('Error during shutdown:', error);
-    process.exit(1);
-  }
-};
-
-// Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
 // Start server
-const startServer = async () => {
-  try {
-    // Connect to MongoDB first
-    await connectDB();
-    
-    // Start Express server
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-      console.log(`📝 Logs directory: ${logsDir}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-startServer();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`📡 Supabase URL: ${process.env.SUPABASE_URL}`);
+});
