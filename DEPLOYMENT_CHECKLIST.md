@@ -2,7 +2,7 @@
 
 Use this checklist to deploy your Cricket backend to production.
 
-## ✅ Pre-Deployment (Local Machine)
+## ✅ Pre-Deployment (Local Machi
 
 ### 1. Configure GitHub Secrets
 - [ ] Go to GitHub repository → Settings → Secrets → Actions
