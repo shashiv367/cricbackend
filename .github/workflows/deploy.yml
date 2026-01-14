@@ -75,17 +75,17 @@ jobs:
             # Pull latest image
             docker pull ${{ env.DOCKER_IMAGE }}:latest
             
-            # Update docker-compose to use the new image
-            docker-compose pull backend
+            # Update docker compose to use the new image
+            docker compose pull backend
             
             # Restart backend service
-            docker-compose up -d backend
+            docker compose up -d backend
             
             # Clean up old images
             docker image prune -f
             
             # Show status
-            docker-compose ps
+            docker compose ps
             
             # Check health
             sleep 10
