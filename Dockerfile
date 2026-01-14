@@ -18,7 +18,7 @@ RUN apk add --no-cache dumb-init
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+  adduser -S nodejs -u 1001
 
 # Set working directory
 WORKDIR /app
@@ -31,7 +31,7 @@ COPY --chown=nodejs:nodejs . .
 
 # Create directories for logs and uploads
 RUN mkdir -p /app/logs /app/uploads && \
-    chown -R nodejs:nodejs /app/logs /app/uploads
+  chown -R nodejs:nodejs /app/logs /app/uploads
 
 # Switch to non-root user
 USER nodejs
@@ -47,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start application
-CMD ["node", "src/index.js"]
+CMD ["node", "src/server.js"]
