@@ -9,7 +9,6 @@ All your deployment files have been moved into the **backend/** directory for be
 - **Server IP**: `103.233.73.55`
 - **Deployment Unit**: `backend/`
 
----
 
 ## Step 1: Push the Project to GitHub
 
