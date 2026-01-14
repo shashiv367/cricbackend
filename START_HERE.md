@@ -16,9 +16,9 @@ All your deployment files have been moved into the **backend/** directory for be
 Make sure all files are on GitHub:
 
 ```powershell
-cd d:\Shashi\cricapp
+cd d:\Shashi\cricapp\backend
 git add .
-git commit -m "Restructure deployment into backend folder"
+git commit -m "Initialize isolated backend repository"
 git push origin main
 ```
 
@@ -60,7 +60,7 @@ Every time you push to GitHub, the **GitHub Actions** will:
 2. Push to Docker Hub
 3. Deploy to your server automatically!
 
-Check status: https://github.com/shashiv367/cricapp/actions
+Check status: https://github.com/shashiv367/cricbackend/actions
 
 ---
 
