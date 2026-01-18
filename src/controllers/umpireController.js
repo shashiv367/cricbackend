@@ -67,6 +67,7 @@ exports.createMatch = async (req, res, next) => {
     const teamBId = await createOrGetTeam(teamBName);
 
     // Create match
+    const { status = 'live' } = req.body;
     const { data: match, error: matchError } = await supabase
       .from('matches')
       .insert({
@@ -74,7 +75,7 @@ exports.createMatch = async (req, res, next) => {
         team_b: teamBId,
         venue: finalLocationId || null,
         overs,
-        status: 'live',
+        status, // Use provided status or default to 'live'
         created_by: umpireId,
         start_date: date || new Date().toISOString(),
       })

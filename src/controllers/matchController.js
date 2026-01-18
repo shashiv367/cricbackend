@@ -34,9 +34,15 @@ exports.listMatches = async (req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('matches')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .select(`
+        *,
+        team_a_details:teams!matches_team_a_fkey(id, name),
+        team_b_details:teams!matches_team_b_fkey(id, name),
+        venue_details:locations(id, name),
+        score:match_score(*)
+      `)
+      .order('start_date', { ascending: false })
+      .limit(20);
 
     if (error) throw error;
 
