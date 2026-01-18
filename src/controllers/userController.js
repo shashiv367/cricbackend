@@ -9,9 +9,9 @@ exports.listMatches = async (req, res, next) => {
       .from('matches')
       .select(`
         *,
-        team_a:teams!matches_team_a_fkey(id, name),
-        team_b:teams!matches_team_b_fkey(id, name),
-        location:locations(id, name, city),
+        team_a_details:teams!matches_team_a_fkey(id, name),
+        team_b_details:teams!matches_team_b_fkey(id, name),
+        venue_details:locations(id, name, city),
         score:match_score(*)
       `)
       .order('created_at', { ascending: false })
@@ -60,9 +60,9 @@ exports.getMatchScoreboard = async (req, res, next) => {
       .from('matches')
       .select(`
         *,
-        team_a:teams!matches_team_a_fkey(id, name),
-        team_b:teams!matches_team_b_fkey(id, name),
-        location:locations(id, name, address, city, state)
+        team_a_details:teams!matches_team_a_fkey(id, name),
+        team_b_details:teams!matches_team_b_fkey(id, name),
+        venue_details:locations(id, name, address, city, state)
       `)
       .eq('id', matchId)
       .single();
@@ -118,10 +118,10 @@ exports.getMatchScoreboard = async (req, res, next) => {
         ...match,
         score: score
           ? {
-              ...score,
-              team_a_run_rate: teamARunRate,
-              team_b_run_rate: teamBRunRate,
-            }
+            ...score,
+            team_a_run_rate: teamARunRate,
+            team_b_run_rate: teamBRunRate,
+          }
           : null,
         team_a_stats: enrichStats(teamAStats),
         team_b_stats: enrichStats(teamBStats),
