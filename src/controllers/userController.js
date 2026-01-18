@@ -116,6 +116,9 @@ exports.getMatchScoreboard = async (req, res, next) => {
     return res.json({
       match: {
         ...match,
+        team_a_details: match.team_a, // Providing aliases for frontend
+        team_b_details: match.team_b,
+        venue_details: match.location,
         score: score
           ? {
             ...score,
@@ -123,6 +126,7 @@ exports.getMatchScoreboard = async (req, res, next) => {
             team_b_run_rate: teamBRunRate,
           }
           : null,
+        playerStats: enrichStats(playerStats || []),
         team_a_stats: enrichStats(teamAStats),
         team_b_stats: enrichStats(teamBStats),
       },
