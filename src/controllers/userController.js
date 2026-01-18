@@ -93,10 +93,13 @@ exports.getMatchScoreboard = async (req, res, next) => {
 
     if (scoreError && scoreError.code !== 'PGRST116') throw scoreError;
 
-    // Get player stats grouped by team
+    // Get player stats joined with profile names
     const { data: playerStats, error: statsError } = await supabase
       .from('match_player_stats')
-      .select('*')
+      .select(`
+        *,
+        player:profiles!match_player_stats_player_id_fkey(full_name)
+      `)
       .eq('match_id', matchId)
       .order('runs', { ascending: false });
 
@@ -114,11 +117,24 @@ exports.getMatchScoreboard = async (req, res, next) => {
 
         return {
           ...stat,
+          player_name: stat.player?.full_name || 'Unknown',
           strike_rate: strikeRate ? parseFloat(strikeRate) : null,
           economy: economy ? parseFloat(economy) : null,
         };
       });
     };
+
+    // Get commentary
+    const { data: commentary, error: commError } = await supabase
+      .from('match_commentary')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('over_number', { ascending: false })
+      .order('ball_number', { ascending: false });
+
+    if (commError && commError.code !== 'PGRST116') {
+      console.warn('⚠️ [USER] Commentary table might not exist yet:', commError.message);
+    }
 
     // Calculate run rates
     let teamARunRate = 0;
@@ -149,6 +165,7 @@ exports.getMatchScoreboard = async (req, res, next) => {
         playerStats: enrichStats(playerStats || []),
         team_a_stats: enrichStats(teamAStats),
         team_b_stats: enrichStats(teamBStats),
+        commentary: commentary || [],
       },
     });
   } catch (err) {

@@ -303,13 +303,21 @@ exports.getMatchDetails = async (req, res, next) => {
 
     if (scoreError && scoreError.code !== 'PGRST116') throw scoreError;
 
-    // Get player stats
+    // Get player stats joined with names
     const { data: playerStats, error: statsError } = await supabase
       .from('match_player_stats')
-      .select('*')
+      .select(`
+        *,
+        player:profiles!match_player_stats_player_id_fkey(full_name)
+      `)
       .eq('match_id', matchId);
 
     if (statsError) throw statsError;
+
+    const enrichedStats = (playerStats || []).map(stat => ({
+      ...stat,
+      player_name: stat.player?.full_name || 'Unknown'
+    }));
 
     // Calculate run rates
     let teamARunRate = 0;
@@ -329,7 +337,7 @@ exports.getMatchDetails = async (req, res, next) => {
             team_b_run_rate: teamBRunRate,
           }
           : null,
-        playerStats: playerStats || [],
+        playerStats: enrichedStats,
       },
     });
   } catch (err) {
@@ -393,6 +401,43 @@ exports.updateMatchStatus = async (req, res, next) => {
     return res.json({
       message: 'Match status updated successfully',
       match,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Add match commentary (umpire only)
+exports.addCommentary = async (req, res, next) => {
+  try {
+    const { matchId } = req.params;
+    const { over_number, ball_number, event_type, commentary_text, runs, is_wicket } = req.body;
+
+    const { data, error } = await supabase
+      .from('match_commentary')
+      .insert([
+        {
+          match_id: matchId,
+          over_number,
+          ball_number,
+          event_type, // 'W', '4', '6', '1', '2', '3', '0', 'NB', 'WD'
+          commentary_text,
+          runs: runs || 0,
+          is_wicket: is_wicket || false,
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ [UMPIRE] Error adding commentary:', error);
+      throw error;
+    }
+
+    return res.json({
+      message: 'Commentary added successfully',
+      commentary: data,
     });
   } catch (err) {
     next(err);
