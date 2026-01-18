@@ -5,6 +5,7 @@ exports.createMatch = async (req, res, next) => {
   try {
     const { teamAName, teamBName, locationId, locationName, overs = 20, date } = req.body;
     const umpireId = req.user.id;
+    console.log(`\n🏟️ [UMPIRE] Creating match: ${teamAName} vs ${teamBName} by Umpire: ${umpireId}`);
 
     if (!teamAName || !teamBName) {
       return res.status(400).json({ message: 'teamAName and teamBName are required' });
@@ -277,6 +278,7 @@ exports.updatePlayerStats = async (req, res, next) => {
 exports.getMatchDetails = async (req, res, next) => {
   try {
     const { matchId } = req.params;
+    console.log(`\n🔍 [UMPIRE] Fetching details for match: ${matchId}`);
 
     // Get match with teams
     const { data: match, error: matchError } = await supabase
@@ -322,10 +324,10 @@ exports.getMatchDetails = async (req, res, next) => {
         ...match,
         score: score
           ? {
-              ...score,
-              team_a_run_rate: teamARunRate,
-              team_b_run_rate: teamBRunRate,
-            }
+            ...score,
+            team_a_run_rate: teamARunRate,
+            team_b_run_rate: teamBRunRate,
+          }
           : null,
         playerStats: playerStats || [],
       },

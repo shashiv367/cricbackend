@@ -4,6 +4,7 @@ const supabase = require('../lib/supabaseClient');
 exports.listMatches = async (req, res, next) => {
   try {
     const { status, limit = 50 } = req.query;
+    console.log(`\n🔍 [USER] Fetching matches (Status: ${status || 'all'}, Limit: ${limit})`);
 
     let query = supabase
       .from('matches')
@@ -23,7 +24,12 @@ exports.listMatches = async (req, res, next) => {
 
     const { data: matches, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [USER] Supabase error fetching matches:', error);
+      throw error;
+    }
+
+    console.log(`✅ [USER] Found ${matches?.length || 0} matches`);
 
     // Enrich with calculated run rates
     const enrichedMatches = (matches || []).map((match) => {
@@ -54,6 +60,7 @@ exports.listMatches = async (req, res, next) => {
 exports.getMatchScoreboard = async (req, res, next) => {
   try {
     const { matchId } = req.params;
+    console.log(`\n🔍 [USER] Fetching scoreboard for match: ${matchId}`);
 
     // Get match with teams and location
     const { data: match, error: matchError } = await supabase
@@ -113,6 +120,7 @@ exports.getMatchScoreboard = async (req, res, next) => {
       teamBRunRate = score.team_b_overs > 0 ? parseFloat((score.team_b_score / score.team_b_overs).toFixed(2)) : 0;
     }
 
+    console.log('✅ [USER] Scoreboard data retrieved successfully');
     return res.json({
       match: {
         ...match,

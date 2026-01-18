@@ -44,6 +44,11 @@ app.use('/api/players', playerRoutes);
 app.use('/api/umpire', umpireRoutes);
 app.use('/api/user', userRoutes);
 
+// Health check for Docker (without /api prefix)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'cricapp-backend-docker' });
+});
+
 // Basic root route
 app.get('/', (req, res) => {
   res.json({ message: 'Cricapp backend API is running' });
@@ -59,7 +64,7 @@ app.use((err, req, res, next) => {
   console.error('❌ [BACKEND] Error details:', JSON.stringify(err, null, 2));
   console.error('❌ [BACKEND] Stack:', err.stack);
   console.error('❌ [BACKEND] ========================================\n');
-  
+
   res.status(err.status || 500).json({
     error: true,
     message: err.message || 'Internal Server Error',
