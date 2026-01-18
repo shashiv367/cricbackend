@@ -18,6 +18,8 @@ router.post('/matches/:matchId/players', umpireController.addPlayerToMatch);
 router.delete('/matches/:matchId/players/:playerStatId', umpireController.deletePlayerFromMatch);
 router.put('/matches/:matchId/player-stats/:playerStatId', umpireController.updatePlayerStats);
 
+module.exports = router;
+
 
 
 

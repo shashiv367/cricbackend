@@ -44,8 +44,8 @@ app.use('/api/players', playerRoutes);
 app.use('/api/umpire', umpireRoutes);
 app.use('/api/user', userRoutes);
 
-// Health check for Docker (without /api prefix)
-app.get('/health', (req, res) => {
+// Health check for Docker
+app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'cricapp-backend-docker' });
 });
 
