@@ -10,9 +10,9 @@ exports.listMatches = async (req, res, next) => {
       .from('matches')
       .select(`
         *,
-        team_a_details:teams!matches_team_a_fkey(id, name),
-        team_b_details:teams!matches_team_b_fkey(id, name),
-        venue_details:locations(id, name, city),
+        team_a:teams!matches_team_a_fkey(id, name),
+        team_b:teams!matches_team_b_fkey(id, name),
+        venue:locations(id, name, city),
         score:match_score(*)
       `)
       .order('created_at', { ascending: false })
@@ -50,7 +50,15 @@ exports.listMatches = async (req, res, next) => {
       return match;
     });
 
-    return res.json({ matches: enrichedMatches });
+    // Map aliases for dashboard if needed
+    const mappedMatches = enrichedMatches.map(m => ({
+      ...m,
+      team_a_details: m.team_a,
+      team_b_details: m.team_b,
+      venue_details: m.venue
+    }));
+
+    return res.json({ matches: mappedMatches });
   } catch (err) {
     next(err);
   }
@@ -67,9 +75,9 @@ exports.getMatchScoreboard = async (req, res, next) => {
       .from('matches')
       .select(`
         *,
-        team_a_details:teams!matches_team_a_fkey(id, name),
-        team_b_details:teams!matches_team_b_fkey(id, name),
-        venue_details:locations(id, name, address, city, state)
+        team_a:teams!matches_team_a_fkey(id, name),
+        team_b:teams!matches_team_b_fkey(id, name),
+        venue:locations(id, name, address, city, state)
       `)
       .eq('id', matchId)
       .single();
@@ -120,13 +128,17 @@ exports.getMatchScoreboard = async (req, res, next) => {
       teamBRunRate = score.team_b_overs > 0 ? parseFloat((score.team_b_score / score.team_b_overs).toFixed(2)) : 0;
     }
 
-    console.log('✅ [USER] Scoreboard data retrieved successfully');
+    const ensureSingle = (item) => (Array.isArray(item) && item.length > 0 ? item[0] : item);
+
     return res.json({
       match: {
         ...match,
-        team_a_details: match.team_a, // Providing aliases for frontend
-        team_b_details: match.team_b,
-        venue_details: match.location,
+        team_a: ensureSingle(match.team_a),
+        team_b: ensureSingle(match.team_b),
+        venue: ensureSingle(match.venue),
+        team_a_details: ensureSingle(match.team_a),
+        team_b_details: ensureSingle(match.team_b),
+        venue_details: ensureSingle(match.venue),
         score: score
           ? {
             ...score,
