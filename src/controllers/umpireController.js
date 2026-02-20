@@ -327,9 +327,14 @@ exports.getMatchDetails = async (req, res, next) => {
       teamBRunRate = score.team_b_overs > 0 ? parseFloat((score.team_b_score / score.team_b_overs).toFixed(2)) : 0;
     }
 
+    const ensureSingle = (item) => (Array.isArray(item) && item.length > 0 ? item[0] : item);
+
     return res.json({
       match: {
         ...match,
+        team_a: ensureSingle(match.team_a),
+        team_b: ensureSingle(match.team_b),
+        location: ensureSingle(match.location),
         score: score
           ? {
             ...score,

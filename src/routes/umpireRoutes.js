@@ -6,7 +6,7 @@ const router = express.Router();
 
 // All routes require umpire role
 router.use(verifyToken);
-router.use(requireRole('umpire'));
+router.use(requireRole('umpire', 'user'));
 
 router.post('/matches', umpireController.createMatch);
 router.get('/matches', umpireController.listUmpireMatches);
