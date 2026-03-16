@@ -56,7 +56,7 @@ exports.listMatches = async (req, res, next) => {
 
 exports.createMatch = async (req, res, next) => {
   try {
-    const { teamAName, teamBName, venue, overs = 20 } = req.body;
+    const { teamAName, teamBName, venue, overs = 20, isPublic = true } = req.body;
 
     if (!teamAName || !teamBName) {
       return res.status(400).json({ message: 'teamAName and teamBName are required' });
@@ -64,6 +64,9 @@ exports.createMatch = async (req, res, next) => {
 
     const teamAId = await createOrGetTeam(teamAName);
     const teamBId = await createOrGetTeam(teamBName);
+
+    // Generate a 6-character alphanumeric invite code
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const { data: match, error: matchError } = await supabase
       .from('matches')
@@ -73,6 +76,8 @@ exports.createMatch = async (req, res, next) => {
         venue: venue || null,
         overs,
         status: 'live',
+        is_public: isPublic,
+        invite_code: inviteCode,
       })
       .select('id')
       .single();

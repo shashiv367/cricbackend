@@ -12,3 +12,5 @@ router.get('/matches/:matchId/scoreboard', userController.getMatchScoreboard);
 router.use(verifyToken);
 
 module.exports = router;
+
+

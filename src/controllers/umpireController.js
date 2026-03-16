@@ -3,7 +3,7 @@ const supabase = require('../lib/supabaseClient');
 // Create match (umpire only)
 exports.createMatch = async (req, res, next) => {
   try {
-    const { teamAName, teamBName, locationId, locationName, overs = 20, date } = req.body;
+    const { teamAName, teamBName, locationId, locationName, overs = 20, date, oversPerBowler } = req.body;
     const umpireId = req.user.id;
     console.log(`\n🏟️ [UMPIRE] Creating match: ${teamAName} vs ${teamBName} by Umpire: ${umpireId}`);
 
@@ -68,7 +68,11 @@ exports.createMatch = async (req, res, next) => {
     const teamBId = await createOrGetTeam(teamBName);
 
     // Create match
-    const { status = 'live' } = req.body;
+    const { status = 'live', isPublic = true } = req.body;
+    
+    // Generate a 6-character alphanumeric invite code
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const { data: match, error: matchError } = await supabase
       .from('matches')
       .insert({
@@ -76,7 +80,10 @@ exports.createMatch = async (req, res, next) => {
         team_b: teamBId,
         venue: finalLocationId || null,
         overs,
-        status, // Use provided status or default to 'live'
+        overs_per_bowler: oversPerBowler || null,
+        status, 
+        is_public: isPublic,
+        invite_code: inviteCode,
         created_by: umpireId,
         start_date: date || new Date().toISOString(),
       })
@@ -101,6 +108,46 @@ exports.createMatch = async (req, res, next) => {
     return res.status(201).json({
       message: 'Match created successfully',
       matchId: match.id,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Update toss result (umpire only)
+exports.updateMatchToss = async (req, res, next) => {
+  try {
+    const { matchId } = req.params;
+    const { tossWinnerSide, tossDecision } = req.body;
+
+    if (!matchId) {
+      return res.status(400).json({ message: 'matchId is required' });
+    }
+
+    if (!tossWinnerSide || !['A', 'B'].includes(tossWinnerSide)) {
+      return res.status(400).json({ message: 'tossWinnerSide must be "A" or "B"' });
+    }
+
+    if (!tossDecision || !['Bat', 'Bowl'].includes(tossDecision)) {
+      return res.status(400).json({ message: 'tossDecision must be "Bat" or "Bowl"' });
+    }
+
+    const { data: match, error } = await supabase
+      .from('matches')
+      .update({
+        toss_winner_side: tossWinnerSide,
+        toss_decision: tossDecision,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', matchId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      message: 'Toss updated successfully',
+      match,
     });
   } catch (err) {
     next(err);
@@ -412,6 +459,67 @@ exports.updateMatchStatus = async (req, res, next) => {
   }
 };
 
+// Update match configuration (overs, rules, bonus/penalty teams)
+exports.updateMatchConfig = async (req, res, next) => {
+  try {
+    const { matchId } = req.params;
+    if (!matchId) {
+      return res.status(400).json({ message: 'matchId is required' });
+    }
+
+    const {
+      overs,
+      wwDotBall,
+      ww1s2s3s,
+      wwForMatch,
+      wwShotSelection,
+      wideLegal,
+      wideRuns,
+      noballLegal,
+      noballRuns,
+      ignoreRules,
+      ignoreOvers,
+      bonusTeam,
+      penaltyTeam,
+    } = req.body;
+
+    const updates = {};
+    if (overs !== undefined) updates.overs = overs;
+    if (wwDotBall !== undefined) updates.ww_dot_ball = wwDotBall;
+    if (ww1s2s3s !== undefined) updates.ww_1s2s3s = ww1s2s3s;
+    if (wwForMatch !== undefined) updates.ww_for_match = wwForMatch;
+    if (wwShotSelection !== undefined) updates.ww_shot_selection = wwShotSelection;
+    if (wideLegal !== undefined) updates.wide_legal = wideLegal;
+    if (wideRuns !== undefined) updates.wide_runs = wideRuns;
+    if (noballLegal !== undefined) updates.noball_legal = noballLegal;
+    if (noballRuns !== undefined) updates.noball_runs = noballRuns;
+    if (ignoreRules !== undefined) updates.ignore_rules = ignoreRules;
+    if (ignoreOvers !== undefined) updates.ignore_overs = ignoreOvers;
+    if (bonusTeam !== undefined) updates.bonus_team = bonusTeam;
+    if (penaltyTeam !== undefined) updates.penalty_team = penaltyTeam;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No configuration fields supplied' });
+    }
+
+    const { data: match, error } = await supabase
+      .from('matches')
+      .update(updates)
+      .eq('id', matchId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      message: 'Match configuration updated successfully',
+      match,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Add match commentary (umpire only)
 exports.addCommentary = async (req, res, next) => {
   try {
@@ -449,6 +557,27 @@ exports.addCommentary = async (req, res, next) => {
   }
 };
 
+// List umpires (community) for assign/invite
+exports.listUmpires = async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .eq('role', 'umpire')
+      .order('full_name', { ascending: true });
 
+    if (error) throw error;
 
+    const umpires = (data || []).map((p) => ({
+      id: p.id,
+      name: p.full_name || 'Umpire',
+      city: p.phone ? undefined : undefined,
+      matches: 0,
+    }));
+
+    return res.json({ umpires });
+  } catch (err) {
+    next(err);
+  }
+};
 

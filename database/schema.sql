@@ -48,10 +48,29 @@ CREATE TABLE IF NOT EXISTS matches (
   team_b UUID REFERENCES teams(id) ON DELETE SET NULL,
   venue UUID REFERENCES locations(id) ON DELETE SET NULL,
   overs INTEGER DEFAULT 20,
+  overs_per_bowler INTEGER,
+  -- Match rule configuration
+  ww_dot_ball BOOLEAN DEFAULT FALSE,
+  ww_1s2s3s BOOLEAN DEFAULT FALSE,
+  ww_for_match BOOLEAN DEFAULT FALSE,
+  ww_shot_selection BOOLEAN DEFAULT FALSE,
+  wide_legal BOOLEAN DEFAULT FALSE,
+  wide_runs INTEGER DEFAULT 1,
+  noball_legal BOOLEAN DEFAULT FALSE,
+  noball_runs INTEGER DEFAULT 1,
+  ignore_rules TEXT,
+  ignore_overs TEXT,
+  bonus_team TEXT,
+  penalty_team TEXT,
   status TEXT DEFAULT 'live' CHECK (status IN ('live', 'completed', 'cancelled', 'scheduled')),
   created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_public BOOLEAN DEFAULT TRUE,
+  invite_code TEXT,
   start_date TIMESTAMP WITH TIME ZONE,
   end_date TIMESTAMP WITH TIME ZONE,
+   -- Toss information (optional)
+  toss_winner_side TEXT, -- 'A' or 'B'
+  toss_decision TEXT,    -- 'Bat' or 'Bowl'
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -310,6 +329,8 @@ ALTER TABLE locations OWNER TO postgres;
 ALTER TABLE matches OWNER TO postgres;
 ALTER TABLE match_score OWNER TO postgres;
 ALTER TABLE match_player_stats OWNER TO postgres;
+
+
 
 
 
