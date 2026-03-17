@@ -108,6 +108,10 @@ exports.createMatch = async (req, res, next) => {
     return res.status(201).json({
       message: 'Match created successfully',
       matchId: match.id,
+      inviteCode,
+      teamAId,
+      teamBId,
+      locationId: finalLocationId || null,
     });
   } catch (err) {
     next(err);
