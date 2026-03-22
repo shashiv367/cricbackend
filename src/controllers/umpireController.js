@@ -1,4 +1,5 @@
 const supabase = require('../lib/supabaseClient');
+const { resolveMatchPlayerDisplayName, fetchProfileMapForStats } = require('../utils/playerStatName');
 
 // Create match (umpire only)
 exports.createMatch = async (req, res, next) => {
@@ -218,10 +219,18 @@ exports.addPlayerToMatch = async (req, res, next) => {
 
     let finalPlayerId = playerId;
 
-    // If playerName provided but no playerId, check if player exists or create profile entry
-    if (!finalPlayerId && playerName) {
-      // For now, we'll use playerName directly in match_player_stats
-      // In a full implementation, you might want to create a player profile first
+    let resolvedName = playerName != null ? String(playerName).trim() : '';
+    resolvedName = resolvedName.length > 0 ? resolvedName : null;
+
+    if (!resolvedName && finalPlayerId) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name, username, phone')
+        .eq('id', finalPlayerId)
+        .maybeSingle();
+      if (prof) {
+        resolvedName = prof.full_name || prof.username || prof.phone || null;
+      }
     }
 
     // Add player stat entry (initialized with zeros)
@@ -229,7 +238,7 @@ exports.addPlayerToMatch = async (req, res, next) => {
       match_id: matchId,
       team_id: teamId,
       player_id: finalPlayerId || null,
-      player_name: playerName || null,
+      player_name: resolvedName,
       runs: 0,
       balls: 0,
       fours: 0,
@@ -353,20 +362,18 @@ exports.getMatchDetails = async (req, res, next) => {
 
     if (scoreError && scoreError.code !== 'PGRST116') throw scoreError;
 
-    // Get player stats joined with names
     const { data: playerStats, error: statsError } = await supabase
       .from('match_player_stats')
-      .select(`
-        *,
-        player:profiles!match_player_stats_player_id_fkey(full_name)
-      `)
+      .select('*')
       .eq('match_id', matchId);
 
     if (statsError) throw statsError;
 
-    const enrichedStats = (playerStats || []).map(stat => ({
+    const profileMap = await fetchProfileMapForStats(supabase, playerStats || []);
+
+    const enrichedStats = (playerStats || []).map((stat) => ({
       ...stat,
-      player_name: stat.player?.full_name || 'Unknown'
+      player_name: resolveMatchPlayerDisplayName(stat, profileMap),
     }));
 
     // Calculate run rates
@@ -478,8 +485,10 @@ exports.updateMatchConfig = async (req, res, next) => {
       wwShotSelection,
       wideLegal,
       wideRuns,
+      wideRotateStrike,
       noballLegal,
       noballRuns,
+      noballRotateStrike,
       ignoreRules,
       ignoreOvers,
       bonusTeam,
@@ -494,8 +503,10 @@ exports.updateMatchConfig = async (req, res, next) => {
     if (wwShotSelection !== undefined) updates.ww_shot_selection = wwShotSelection;
     if (wideLegal !== undefined) updates.wide_legal = wideLegal;
     if (wideRuns !== undefined) updates.wide_runs = wideRuns;
+    if (wideRotateStrike !== undefined) updates.wide_rotate_strike = wideRotateStrike;
     if (noballLegal !== undefined) updates.noball_legal = noballLegal;
     if (noballRuns !== undefined) updates.noball_runs = noballRuns;
+    if (noballRotateStrike !== undefined) updates.noball_rotate_strike = noballRotateStrike;
     if (ignoreRules !== undefined) updates.ignore_rules = ignoreRules;
     if (ignoreOvers !== undefined) updates.ignore_overs = ignoreOvers;
     if (bonusTeam !== undefined) updates.bonus_team = bonusTeam;

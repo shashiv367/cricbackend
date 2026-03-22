@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS matches (
   wide_runs INTEGER DEFAULT 1,
   noball_legal BOOLEAN DEFAULT FALSE,
   noball_runs INTEGER DEFAULT 1,
+  -- If true, odd total runs on a wide swap striker/non-striker (default false = ICC-style extras).
+  wide_rotate_strike BOOLEAN DEFAULT FALSE,
+  -- If true, odd total runs on a no-ball swap striker/non-striker (default false).
+  noball_rotate_strike BOOLEAN DEFAULT FALSE,
   ignore_rules TEXT,
   ignore_overs TEXT,
   bonus_team TEXT,
@@ -140,14 +144,17 @@ ALTER TABLE match_player_stats ENABLE ROW LEVEL SECURITY;
 -- RLS POLICIES - PROFILES
 -- ============================================
 -- Anyone can view profiles
+DROP POLICY IF EXISTS "Anyone can view profiles" ON profiles;
 CREATE POLICY "Anyone can view profiles" ON profiles
   FOR SELECT USING (true);
 
 -- Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
 -- Users can insert their own profile
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
@@ -155,10 +162,12 @@ CREATE POLICY "Users can insert own profile" ON profiles
 -- RLS POLICIES - TEAMS
 -- ============================================
 -- Anyone can view teams
+DROP POLICY IF EXISTS "Anyone can view teams" ON teams;
 CREATE POLICY "Anyone can view teams" ON teams
   FOR SELECT USING (true);
 
 -- Authenticated users can create teams
+DROP POLICY IF EXISTS "Authenticated users can create teams" ON teams;
 CREATE POLICY "Authenticated users can create teams" ON teams
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
@@ -166,10 +175,12 @@ CREATE POLICY "Authenticated users can create teams" ON teams
 -- RLS POLICIES - LOCATIONS
 -- ============================================
 -- Anyone can view locations
+DROP POLICY IF EXISTS "Anyone can view locations" ON locations;
 CREATE POLICY "Anyone can view locations" ON locations
   FOR SELECT USING (true);
 
 -- Authenticated users can create locations
+DROP POLICY IF EXISTS "Authenticated users can create locations" ON locations;
 CREATE POLICY "Authenticated users can create locations" ON locations
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
@@ -177,11 +188,13 @@ CREATE POLICY "Authenticated users can create locations" ON locations
 -- RLS POLICIES - MATCHES
 -- ============================================
 -- Anyone can view matches
+DROP POLICY IF EXISTS "Anyone can view matches" ON matches;
 CREATE POLICY "Anyone can view matches" ON matches
   FOR SELECT USING (true);
 
 -- Users and umpires can create matches (only if they are the creator)
 DROP POLICY IF EXISTS "Umpires can create matches" ON matches;
+DROP POLICY IF EXISTS "Users can create matches" ON matches;
 CREATE POLICY "Users can create matches" ON matches
   FOR INSERT WITH CHECK (
     created_by = auth.uid()
@@ -189,6 +202,7 @@ CREATE POLICY "Users can create matches" ON matches
 
 -- Users and umpires can update their own matches
 DROP POLICY IF EXISTS "Umpires can update their own matches" ON matches;
+DROP POLICY IF EXISTS "Users can update own matches" ON matches;
 CREATE POLICY "Users can update own matches" ON matches
   FOR UPDATE USING (
     created_by = auth.uid()
@@ -198,11 +212,13 @@ CREATE POLICY "Users can update own matches" ON matches
 -- RLS POLICIES - MATCH SCORE
 -- ============================================
 -- Anyone can view match scores
+DROP POLICY IF EXISTS "Anyone can view match scores" ON match_score;
 CREATE POLICY "Anyone can view match scores" ON match_score
   FOR SELECT USING (true);
 
 -- Users and umpires can insert match scores for their own matches
 DROP POLICY IF EXISTS "Umpires can insert match scores" ON match_score;
+DROP POLICY IF EXISTS "Users can insert match scores" ON match_score;
 CREATE POLICY "Users can insert match scores" ON match_score
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -213,6 +229,7 @@ CREATE POLICY "Users can insert match scores" ON match_score
 
 -- Users and umpires can update match scores for their own matches
 DROP POLICY IF EXISTS "Umpires can update match scores" ON match_score;
+DROP POLICY IF EXISTS "Users can update match scores" ON match_score;
 CREATE POLICY "Users can update match scores" ON match_score
   FOR UPDATE USING (
     EXISTS (
@@ -226,6 +243,7 @@ CREATE POLICY "Users can update match scores" ON match_score
 -- ============================================
 -- Only match creator can view player stats
 DROP POLICY IF EXISTS "Anyone can view player stats" ON match_player_stats;
+DROP POLICY IF EXISTS "Match creator can view player stats" ON match_player_stats;
 CREATE POLICY "Match creator can view player stats" ON match_player_stats
   FOR SELECT USING (
     EXISTS (
@@ -236,6 +254,7 @@ CREATE POLICY "Match creator can view player stats" ON match_player_stats
 
 -- Users and umpires can insert player stats only for their own matches
 DROP POLICY IF EXISTS "Umpires can insert player stats" ON match_player_stats;
+DROP POLICY IF EXISTS "Users can insert player stats" ON match_player_stats;
 CREATE POLICY "Users can insert player stats" ON match_player_stats
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -246,6 +265,7 @@ CREATE POLICY "Users can insert player stats" ON match_player_stats
 
 -- Users and umpires can update player stats only for their own matches
 DROP POLICY IF EXISTS "Umpires can update player stats" ON match_player_stats;
+DROP POLICY IF EXISTS "Users can update player stats" ON match_player_stats;
 CREATE POLICY "Users can update player stats" ON match_player_stats
   FOR UPDATE USING (
     EXISTS (
@@ -256,6 +276,7 @@ CREATE POLICY "Users can update player stats" ON match_player_stats
 
 -- Users and umpires can delete player stats only for their own matches
 DROP POLICY IF EXISTS "Umpires can delete player stats" ON match_player_stats;
+DROP POLICY IF EXISTS "Users can delete player stats" ON match_player_stats;
 CREATE POLICY "Users can delete player stats" ON match_player_stats
   FOR DELETE USING (
     EXISTS (
@@ -278,31 +299,37 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_teams_updated_at ON teams;
 CREATE TRIGGER update_teams_updated_at
   BEFORE UPDATE ON teams
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_locations_updated_at ON locations;
 CREATE TRIGGER update_locations_updated_at
   BEFORE UPDATE ON locations
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_matches_updated_at ON matches;
 CREATE TRIGGER update_matches_updated_at
   BEFORE UPDATE ON matches
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_match_score_updated_at ON match_score;
 CREATE TRIGGER update_match_score_updated_at
   BEFORE UPDATE ON match_score
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_match_player_stats_updated_at ON match_player_stats;
 CREATE TRIGGER update_match_player_stats_updated_at
   BEFORE UPDATE ON match_player_stats
   FOR EACH ROW
@@ -323,10 +350,15 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to create profile when user signs up
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- Existing databases: add columns if missing
+-- ALTER TABLE matches ADD COLUMN IF NOT EXISTS wide_rotate_strike BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE matches ADD COLUMN IF NOT EXISTS noball_rotate_strike BOOLEAN DEFAULT FALSE;
 
 -- ============================================
 -- GRANT PERMISSIONS

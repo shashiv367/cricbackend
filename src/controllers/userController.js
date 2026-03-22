@@ -1,4 +1,5 @@
 const supabase = require('../lib/supabaseClient');
+const { resolveMatchPlayerDisplayName, fetchProfileMapForStats } = require('../utils/playerStatName');
 
 // List all matches for user dashboard (like Cricbuzz)
 exports.listMatches = async (req, res, next) => {
@@ -93,23 +94,22 @@ exports.getMatchScoreboard = async (req, res, next) => {
 
     if (scoreError && scoreError.code !== 'PGRST116') throw scoreError;
 
-    // Get player stats joined with profile names
     const { data: playerStats, error: statsError } = await supabase
       .from('match_player_stats')
-      .select(`
-        *,
-        player:profiles!match_player_stats_player_id_fkey(full_name)
-      `)
+      .select('*')
       .eq('match_id', matchId)
       .order('runs', { ascending: false });
 
     if (statsError) throw statsError;
 
-    // Group player stats by team
-    const teamAStats = (playerStats || []).filter((stat) => stat.team_id === match.team_a?.id);
-    const teamBStats = (playerStats || []).filter((stat) => stat.team_id === match.team_b?.id);
+    const profileMap = await fetchProfileMapForStats(supabase, playerStats || []);
 
-    // Calculate strike rates and economy
+    const teamAId = match.team_a && (Array.isArray(match.team_a) ? match.team_a[0]?.id : match.team_a.id);
+    const teamBId = match.team_b && (Array.isArray(match.team_b) ? match.team_b[0]?.id : match.team_b.id);
+
+    const teamAStats = (playerStats || []).filter((stat) => stat.team_id === teamAId);
+    const teamBStats = (playerStats || []).filter((stat) => stat.team_id === teamBId);
+
     const enrichStats = (stats) => {
       return stats.map((stat) => {
         const strikeRate = stat.balls > 0 && stat.runs !== null ? ((stat.runs / stat.balls) * 100).toFixed(2) : null;
@@ -117,7 +117,7 @@ exports.getMatchScoreboard = async (req, res, next) => {
 
         return {
           ...stat,
-          player_name: stat.player?.full_name || 'Unknown',
+          player_name: resolveMatchPlayerDisplayName(stat, profileMap),
           strike_rate: strikeRate ? parseFloat(strikeRate) : null,
           economy: economy ? parseFloat(economy) : null,
         };
