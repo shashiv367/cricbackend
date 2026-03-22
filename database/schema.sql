@@ -180,22 +180,18 @@ CREATE POLICY "Authenticated users can create locations" ON locations
 CREATE POLICY "Anyone can view matches" ON matches
   FOR SELECT USING (true);
 
--- Umpires can create matches
-CREATE POLICY "Umpires can create matches" ON matches
+-- Users and umpires can create matches (only if they are the creator)
+DROP POLICY IF EXISTS "Umpires can create matches" ON matches;
+CREATE POLICY "Users can create matches" ON matches
   FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
-    )
+    created_by = auth.uid()
   );
 
--- Umpires can update their own matches
-CREATE POLICY "Umpires can update own matches" ON matches
+-- Users and umpires can update their own matches
+DROP POLICY IF EXISTS "Umpires can update their own matches" ON matches;
+CREATE POLICY "Users can update own matches" ON matches
   FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
-    ) AND created_by = auth.uid()
+    created_by = auth.uid()
   );
 
 -- ============================================
@@ -205,53 +201,66 @@ CREATE POLICY "Umpires can update own matches" ON matches
 CREATE POLICY "Anyone can view match scores" ON match_score
   FOR SELECT USING (true);
 
--- Umpires can insert match scores
-CREATE POLICY "Umpires can insert match scores" ON match_score
+-- Users and umpires can insert match scores for their own matches
+DROP POLICY IF EXISTS "Umpires can insert match scores" ON match_score;
+CREATE POLICY "Users can insert match scores" ON match_score
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
+      SELECT 1 FROM matches m
+      WHERE m.id = match_score.match_id AND m.created_by = auth.uid()
     )
   );
 
--- Umpires can update match scores
-CREATE POLICY "Umpires can update match scores" ON match_score
+-- Users and umpires can update match scores for their own matches
+DROP POLICY IF EXISTS "Umpires can update match scores" ON match_score;
+CREATE POLICY "Users can update match scores" ON match_score
   FOR UPDATE USING (
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
+      SELECT 1 FROM matches m
+      WHERE m.id = match_score.match_id AND m.created_by = auth.uid()
     )
   );
 
 -- ============================================
 -- RLS POLICIES - MATCH PLAYER STATS
 -- ============================================
--- Anyone can view player stats
-CREATE POLICY "Anyone can view player stats" ON match_player_stats
-  FOR SELECT USING (true);
+-- Only match creator can view player stats
+DROP POLICY IF EXISTS "Anyone can view player stats" ON match_player_stats;
+CREATE POLICY "Match creator can view player stats" ON match_player_stats
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM matches m
+      WHERE m.id = match_player_stats.match_id AND m.created_by = auth.uid()
+    )
+  );
 
--- Umpires can manage player stats
-CREATE POLICY "Umpires can insert player stats" ON match_player_stats
+-- Users and umpires can insert player stats only for their own matches
+DROP POLICY IF EXISTS "Umpires can insert player stats" ON match_player_stats;
+CREATE POLICY "Users can insert player stats" ON match_player_stats
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
+      SELECT 1 FROM matches m
+      WHERE m.id = match_player_stats.match_id AND m.created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Umpires can update player stats" ON match_player_stats
+-- Users and umpires can update player stats only for their own matches
+DROP POLICY IF EXISTS "Umpires can update player stats" ON match_player_stats;
+CREATE POLICY "Users can update player stats" ON match_player_stats
   FOR UPDATE USING (
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
+      SELECT 1 FROM matches m
+      WHERE m.id = match_player_stats.match_id AND m.created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Umpires can delete player stats" ON match_player_stats
+-- Users and umpires can delete player stats only for their own matches
+DROP POLICY IF EXISTS "Umpires can delete player stats" ON match_player_stats;
+CREATE POLICY "Users can delete player stats" ON match_player_stats
   FOR DELETE USING (
     EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE id = auth.uid() AND role = 'umpire'
+      SELECT 1 FROM matches m
+      WHERE m.id = match_player_stats.match_id AND m.created_by = auth.uid()
     )
   );
 

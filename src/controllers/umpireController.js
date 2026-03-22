@@ -3,7 +3,7 @@ const supabase = require('../lib/supabaseClient');
 // Create match (umpire only)
 exports.createMatch = async (req, res, next) => {
   try {
-    const { teamAName, teamBName, locationId, locationName, overs = 20, date, oversPerBowler } = req.body;
+    const { teamAName, teamBName, locationId, locationName, overs = 20, date } = req.body;
     const umpireId = req.user.id;
     console.log(`\n🏟️ [UMPIRE] Creating match: ${teamAName} vs ${teamBName} by Umpire: ${umpireId}`);
 
@@ -80,7 +80,6 @@ exports.createMatch = async (req, res, next) => {
         team_b: teamBId,
         venue: finalLocationId || null,
         overs,
-        overs_per_bowler: oversPerBowler || null,
         status, 
         is_public: isPublic,
         invite_code: inviteCode,
