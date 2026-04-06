@@ -218,6 +218,36 @@ exports.listMyMatches = async (req, res, next) => {
   }
 };
 
+function normalizeStatNameKey(s) {
+  if (s == null) return '';
+  return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/** Keys derived from profile to match text-only squad rows (player_id null). */
+function profileNameMatchKeys(profile) {
+  const keys = new Set();
+  const add = (raw) => {
+    const n = normalizeStatNameKey(raw);
+    if (n.length < 2) return;
+    keys.add(n);
+    const first = n.split(' ')[0];
+    if (first && first.length >= 2) keys.add(first);
+  };
+  add(profile?.full_name);
+  add(profile?.username);
+  return keys;
+}
+
+function unlinkedStatMatchesProfile(row, keys) {
+  if (row.player_id != null && row.player_id !== undefined) return false;
+  const pn = normalizeStatNameKey(row.player_name);
+  if (pn.length < 2) return false;
+  if (keys.has(pn)) return true;
+  const first = pn.split(' ')[0];
+  if (first && keys.has(first)) return true;
+  return false;
+}
+
 // Aggregate batting/bowling for current user (any profile role)
 exports.getMyCricketStats = async (req, res, next) => {
   try {
@@ -228,12 +258,42 @@ exports.getMyCricketStats = async (req, res, next) => {
       .eq('id', userId)
       .single();
 
-    const { data: stats, error } = await supabase
+    const { data: byPlayerId, error: errById } = await supabase
       .from('match_player_stats')
       .select('*')
       .eq('player_id', userId);
 
-    if (error) throw error;
+    if (errById) throw errById;
+
+    const matchKeys = profileNameMatchKeys(profile || {});
+    let nameMatched = [];
+    if (matchKeys.size > 0) {
+      const terms = [...matchKeys].filter((t) => t.length >= 2).slice(0, 10);
+      const orParts = terms
+        .map((t) => t.replace(/%/g, '').replace(/_/g, '').trim())
+        .filter((t) => t.length >= 2)
+        .map((t) => `player_name.ilike.%${t}%`);
+      let unlinked = [];
+      if (orParts.length > 0) {
+        const { data: byName, error: errUnlinked } = await supabase
+          .from('match_player_stats')
+          .select('*')
+          .is('player_id', null)
+          .or(orParts.join(','));
+        if (errUnlinked) throw errUnlinked;
+        unlinked = byName || [];
+      }
+      nameMatched = unlinked.filter((row) => unlinkedStatMatchesProfile(row, matchKeys));
+    }
+
+    const seenIds = new Set((byPlayerId || []).map((r) => r.id).filter(Boolean));
+    const stats = [...(byPlayerId || [])];
+    for (const row of nameMatched) {
+      if (row.id && !seenIds.has(row.id)) {
+        seenIds.add(row.id);
+        stats.push(row);
+      }
+    }
 
     const battingStats = {
       totalRuns: 0,

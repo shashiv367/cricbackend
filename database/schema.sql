@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS matches (
    -- Toss information (optional)
   toss_winner_side TEXT, -- 'A' or 'B'
   toss_decision TEXT,    -- 'Bat' or 'Bowl'
+  completion_reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -398,6 +399,7 @@ CREATE TRIGGER on_auth_user_created
 -- Existing databases: add columns if missing
 -- ALTER TABLE matches ADD COLUMN IF NOT EXISTS wide_rotate_strike BOOLEAN DEFAULT FALSE;
 -- ALTER TABLE matches ADD COLUMN IF NOT EXISTS noball_rotate_strike BOOLEAN DEFAULT FALSE;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS completion_reason TEXT;
 
 -- ============================================
 -- GRANT PERMISSIONS
