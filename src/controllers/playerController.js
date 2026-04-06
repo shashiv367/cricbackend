@@ -6,7 +6,7 @@ exports.listPlayers = async (req, res, next) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, username, phone, role')
-      .eq('role', 'player')
+      .in('role', ['player', 'user'])
       .order('full_name', { ascending: true });
 
     if (error) throw error;
