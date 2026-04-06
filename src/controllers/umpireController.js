@@ -431,11 +431,12 @@ exports.listUmpireMatches = async (req, res, next) => {
   }
 };
 
-// Update match status (umpire only)
+// Update match status (match creator only)
 exports.updateMatchStatus = async (req, res, next) => {
   try {
     const { matchId } = req.params;
-    const { status } = req.body;
+    const { status, completionReason } = req.body;
+    const userId = req.user.id;
 
     if (!matchId) {
       return res.status(400).json({ message: 'matchId is required' });
@@ -451,9 +452,35 @@ exports.updateMatchStatus = async (req, res, next) => {
       return res.status(400).json({ message: `status must be one of: ${validStatuses.join(', ')}` });
     }
 
+    const { data: existing, error: fetchError } = await supabase
+      .from('matches')
+      .select('id, created_by')
+      .eq('id', matchId)
+      .single();
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ message: 'Match not found' });
+    }
+
+    if (!existing.created_by || existing.created_by !== userId) {
+      return res.status(403).json({ message: 'Only the match creator can change match status' });
+    }
+
+    const updates = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === 'completed') {
+      updates.end_date = new Date().toISOString();
+      if (completionReason != null && String(completionReason).trim()) {
+        updates.completion_reason = String(completionReason).trim();
+      }
+    }
+
     const { data: match, error } = await supabase
       .from('matches')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', matchId)
       .select()
       .single();

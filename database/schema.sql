@@ -117,6 +117,22 @@ CREATE TABLE IF NOT EXISTS match_player_stats (
 );
 
 -- ============================================
+-- TOURNAMENTS TABLE (My Cricket)
+-- ============================================
+CREATE TABLE IF NOT EXISTS tournaments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  tagline TEXT,
+  city TEXT,
+  ground_name TEXT,
+  start_date DATE,
+  end_date DATE,
+  created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
@@ -129,6 +145,7 @@ CREATE INDEX IF NOT EXISTS idx_match_score_match_id ON match_score(match_id);
 CREATE INDEX IF NOT EXISTS idx_match_player_stats_match_id ON match_player_stats(match_id);
 CREATE INDEX IF NOT EXISTS idx_match_player_stats_player_id ON match_player_stats(player_id);
 CREATE INDEX IF NOT EXISTS idx_match_player_stats_team_id ON match_player_stats(team_id);
+CREATE INDEX IF NOT EXISTS idx_tournaments_created_by ON tournaments(created_by);
 
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
@@ -139,6 +156,7 @@ ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_score ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_player_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tournaments ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- RLS POLICIES - PROFILES
@@ -183,6 +201,21 @@ CREATE POLICY "Anyone can view locations" ON locations
 DROP POLICY IF EXISTS "Authenticated users can create locations" ON locations;
 CREATE POLICY "Authenticated users can create locations" ON locations
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- ============================================
+-- RLS POLICIES - TOURNAMENTS
+-- ============================================
+DROP POLICY IF EXISTS "Anyone can view tournaments" ON tournaments;
+CREATE POLICY "Anyone can view tournaments" ON tournaments
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can insert own tournaments" ON tournaments;
+CREATE POLICY "Users can insert own tournaments" ON tournaments
+  FOR INSERT WITH CHECK (created_by = auth.uid());
+
+DROP POLICY IF EXISTS "Users can update own tournaments" ON tournaments;
+CREATE POLICY "Users can update own tournaments" ON tournaments
+  FOR UPDATE USING (created_by = auth.uid());
 
 -- ============================================
 -- RLS POLICIES - MATCHES
@@ -323,6 +356,12 @@ CREATE TRIGGER update_matches_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_tournaments_updated_at ON tournaments;
+CREATE TRIGGER update_tournaments_updated_at
+  BEFORE UPDATE ON tournaments
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 DROP TRIGGER IF EXISTS update_match_score_updated_at ON match_score;
 CREATE TRIGGER update_match_score_updated_at
   BEFORE UPDATE ON match_score
@@ -370,6 +409,7 @@ ALTER TABLE locations OWNER TO postgres;
 ALTER TABLE matches OWNER TO postgres;
 ALTER TABLE match_score OWNER TO postgres;
 ALTER TABLE match_player_stats OWNER TO postgres;
+ALTER TABLE tournaments OWNER TO postgres;
 
 
 
