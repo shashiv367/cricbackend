@@ -339,6 +339,38 @@ exports.getMyCricketStats = async (req, res, next) => {
       bowlingStats.average = (bowlingStats.totalRunsConceded / bowlingStats.totalWickets).toFixed(2);
     }
 
+    const matchIds = [...new Set((stats || []).map((s) => s.match_id).filter(Boolean))];
+    let matchMetaById = new Map();
+    if (matchIds.length > 0) {
+      const { data: matches, error: matchErr } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          status,
+          start_date,
+          team_a:teams!matches_team_a_fkey(id, name),
+          team_b:teams!matches_team_b_fkey(id, name)
+        `)
+        .in('id', matchIds);
+      if (matchErr) throw matchErr;
+      matchMetaById = new Map((matches || []).map((m) => [m.id, m]));
+    }
+
+    const statProfileMap = await fetchProfileMapForStats(supabase, stats || []);
+    const detailedMatchStats = (stats || []).map((row) => {
+      const m = row.match_id ? matchMetaById.get(row.match_id) : null;
+      const teamA = m?.team_a && Array.isArray(m.team_a) ? m.team_a[0] : m?.team_a;
+      const teamB = m?.team_b && Array.isArray(m.team_b) ? m.team_b[0] : m?.team_b;
+      return {
+        ...row,
+        player_name: resolveMatchPlayerDisplayName(row, statProfileMap),
+        match_status: m?.status || null,
+        match_date: m?.start_date || null,
+        team_a_name: teamA?.name || null,
+        team_b_name: teamB?.name || null,
+      };
+    });
+
     return res.json({
       player: {
         id: userId,
@@ -346,7 +378,7 @@ exports.getMyCricketStats = async (req, res, next) => {
       },
       batting: battingStats,
       bowling: bowlingStats,
-      matchStats: stats || [],
+      matchStats: detailedMatchStats,
     });
   } catch (err) {
     next(err);

@@ -247,7 +247,20 @@ exports.updateProfile = async (req, res, next) => {
     }
 
     console.log('🔵 [BACKEND] Update Profile Request Body:', JSON.stringify(req.body, null, 2));
-    const { fullName, phone, email, profilePictureUrl, teamName } = req.body;
+    const {
+      fullName,
+      phone,
+      email,
+      profilePictureUrl,
+      teamName,
+      city,
+      since,
+      gender,
+      playingRole,
+      battingStyle,
+      bowlingStyle,
+      dob,
+    } = req.body;
     const updates = {};
 
     if (fullName !== undefined) updates.full_name = fullName;
@@ -260,6 +273,13 @@ exports.updateProfile = async (req, res, next) => {
       console.log('🔵 [BACKEND] Setting team_name:', teamName);
       updates.team_name = teamName;
     }
+    if (city !== undefined) updates.city = city;
+    if (since !== undefined) updates.since = since;
+    if (gender !== undefined) updates.gender = gender;
+    if (playingRole !== undefined) updates.playing_role = playingRole;
+    if (battingStyle !== undefined) updates.batting_style = battingStyle;
+    if (bowlingStyle !== undefined) updates.bowling_style = bowlingStyle;
+    if (dob !== undefined) updates.dob = dob;
     if (email !== undefined) {
       updates.username = email;
       // Also update auth email if provided
