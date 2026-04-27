@@ -10,7 +10,8 @@ ADD COLUMN IF NOT EXISTS gender TEXT,
 ADD COLUMN IF NOT EXISTS playing_role TEXT,
 ADD COLUMN IF NOT EXISTS batting_style TEXT,
 ADD COLUMN IF NOT EXISTS bowling_style TEXT,
-ADD COLUMN IF NOT EXISTS dob TEXT;
+ADD COLUMN IF NOT EXISTS dob TEXT,
+ADD COLUMN IF NOT EXISTS profile_views INTEGER DEFAULT 0;
 
 -- Add comment
 COMMENT ON COLUMN profiles.profile_picture_url IS 'URL to the profile picture stored in Supabase Storage avatars bucket';
@@ -22,4 +23,5 @@ COMMENT ON COLUMN profiles.playing_role IS 'Cricket playing role';
 COMMENT ON COLUMN profiles.batting_style IS 'Batting style preference';
 COMMENT ON COLUMN profiles.bowling_style IS 'Bowling style preference';
 COMMENT ON COLUMN profiles.dob IS 'Date of birth';
+COMMENT ON COLUMN profiles.profile_views IS 'Public profile views from QR/deep links';
 

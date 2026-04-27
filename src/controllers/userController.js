@@ -519,6 +519,94 @@ exports.createTournament = async (req, res, next) => {
   }
 };
 
+// Public profile for QR/deep-link preview
+exports.getPublicProfile = async (req, res, next) => {
+  try {
+    const { profileId } = req.params;
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, full_name, username, phone, role, profile_picture_url, city, since, gender, playing_role, batting_style, bowling_style, dob, profile_views, updated_at')
+      .eq('id', profileId)
+      .single();
+    if (profileError) throw profileError;
+
+    const { data: statsRows, error: statsError } = await supabase
+      .from('match_player_stats')
+      .select('runs, balls, fours, sixes, wickets, overs, updated_at')
+      .eq('player_id', profileId);
+    if (statsError) throw statsError;
+
+    const rows = statsRows || [];
+    const totalRuns = rows.reduce((s, r) => s + (r.runs || 0), 0);
+    const totalBalls = rows.reduce((s, r) => s + (r.balls || 0), 0);
+    const totalWickets = rows.reduce((s, r) => s + (r.wickets || 0), 0);
+    const totalOvers = rows.reduce((s, r) => s + Number(r.overs || 0), 0);
+    const totalFours = rows.reduce((s, r) => s + (r.fours || 0), 0);
+    const totalSixes = rows.reduce((s, r) => s + (r.sixes || 0), 0);
+    const strikeRate = totalBalls > 0 ? Number(((totalRuns / totalBalls) * 100).toFixed(2)) : 0;
+    const economy = totalOvers > 0 ? Number((totalRuns / totalOvers).toFixed(2)) : 0;
+
+    const highlights = [...rows]
+      .sort((a, b) => (b.runs || 0) - (a.runs || 0))
+      .slice(0, 5)
+      .map((r, idx) => ({
+        title: `Performance ${idx + 1}`,
+        runs: r.runs || 0,
+        balls: r.balls || 0,
+        wickets: r.wickets || 0,
+        overs: Number(r.overs || 0),
+        updated_at: r.updated_at || null,
+      }));
+
+    return res.json({
+      profile,
+      stats: {
+        matches: rows.length,
+        totalRuns,
+        totalBalls,
+        totalWickets,
+        totalOvers: Number(totalOvers.toFixed(1)),
+        totalFours,
+        totalSixes,
+        strikeRate,
+        economy,
+      },
+      highlights,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.trackPublicProfileView = async (req, res, next) => {
+  try {
+    const { profileId } = req.params;
+    const { data: row, error: readErr } = await supabase
+      .from('profiles')
+      .select('profile_views')
+      .eq('id', profileId)
+      .single();
+    if (readErr) throw readErr;
+
+    const nextViews = (row?.profile_views || 0) + 1;
+    const { data: updated, error: updErr } = await supabase
+      .from('profiles')
+      .update({ profile_views: nextViews })
+      .eq('id', profileId)
+      .select('id, profile_views')
+      .single();
+    if (updErr) throw updErr;
+
+    return res.json({
+      message: 'Profile view tracked',
+      profile: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 
 

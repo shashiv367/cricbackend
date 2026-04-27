@@ -7,6 +7,8 @@ const router = express.Router();
 // Public routes (Guests can see matches and scores)
 router.get('/matches', userController.listMatches);
 router.get('/matches/:matchId/scoreboard', userController.getMatchScoreboard);
+router.get('/public-profile/:profileId', userController.getPublicProfile);
+router.post('/public-profile/:profileId/view', userController.trackPublicProfileView);
 
 // Protected routes (Future: user profiles, settings, etc.)
 router.use(verifyToken);

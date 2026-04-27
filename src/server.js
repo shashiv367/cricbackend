@@ -54,6 +54,39 @@ app.get('/', (req, res) => {
   res.json({ message: 'Cricapp backend API is running' });
 });
 
+// Public profile landing page for QR scans.
+app.get('/profile/:profileId', (req, res) => {
+  const { profileId } = req.params;
+  const deepLink = `innings://profile/${profileId}`;
+  const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.example.sportbet';
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Open Innings Profile</title>
+    <style>
+      body{font-family:Arial,sans-serif;background:#f6f4ff;margin:0;padding:24px;color:#1f2937}
+      .card{max-width:520px;margin:24px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+      h1{margin:0 0 8px;font-size:22px}
+      p{color:#6b7280;line-height:1.4}
+      .btn{display:inline-block;text-decoration:none;padding:12px 16px;border-radius:10px;font-weight:700}
+      .primary{background:#6d28d9;color:#fff}
+      .secondary{background:#0ea5a4;color:#fff;margin-left:10px}
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>View Cricket Profile</h1>
+      <p>Open this profile in the Innings app. If the app is not installed, download it from Play Store.</p>
+      <a class="btn primary" href="${deepLink}">Open in App</a>
+      <a class="btn secondary" href="${playStoreUrl}">Download App</a>
+      <p style="margin-top:14px;font-size:12px">Profile id: ${profileId}</p>
+    </div>
+  </body>
+</html>`);
+});
+
 // Error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
